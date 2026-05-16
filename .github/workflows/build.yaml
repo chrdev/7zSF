@@ -1,0 +1,101 @@
+name: Build New Release
+on:
+  workflow_dispatch:
+    inputs:
+      VERFIX:
+        description: 'Fix Version Number, as x in "##.##.##.x"'
+        required: true
+        type: number
+  schedule:
+    - cron: '57 5 * * 6'
+jobs:
+  build:
+    name: Build and Release
+    runs-on: windows-2025-vs2026
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Get LZMA-SDK Metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $LZMA_JSON = gh api -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2026-03-10' /repos/ip7z/7zip/releases/latest | Out-String
+
+          if ($LZMA_JSON -notmatch '"browser_download_url".+(https://.+lzma.+\.7z)') {
+            echo "Can't get LZMA-SDK URL"
+            exit 1
+          }
+          $LZMA_URL = $matches[1]
+
+          if ($LZMA_JSON -notmatch '"tag_name".+"(.+)"') {
+            echo "Can't get LZMA-SDK Tag"
+            exit 1
+          }
+          $LZMA_TAG = $matches[1]
+          $LZMA_URL -match '/(lzma.+\.7z)' | Out-Null
+          $LZMA_7Z = $matches[1]
+
+          echo "LZMA_URL=$LZMA_URL" >> "$env:GITHUB_ENV"
+          echo "LZMA_TAG=$LZMA_TAG" >> "$env:GITHUB_ENV"
+          echo "LZMA_7Z=$LZMA_7Z" >> "$env:GITHUB_ENV"
+      - name: Get This Repo Metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $REPO_TAG = '0'
+          $REPO_JSON = gh release view --json tagName | Out-String
+          if ($REPO_JSON -match '"tagName".+"(.+)"') {
+            $REPO_TAG = $matches[1]
+          }
+          echo "REPO_TAG=$REPO_TAG" >> "$env:GITHUB_ENV"
+      - name: Compare Release Version
+        run: |
+          $TAG = "$env:LZMA_TAG"
+          if ("$env:GITHUB_EVENT_NAME" -eq 'workflow_dispatch' -and "${{ github.event.inputs.VERFIX }}" -ne '0') {
+            $TAG += '(' + "${{ github.event.inputs.VERFIX }}" + ')'
+            echo "REPO_VERFIX=${{ github.event.inputs.VERFIX }}" >> "$env:GITHUB_ENV"
+          }
+          if ($env:REPO_TAG.StartsWith($TAG)) {
+            echo "LZMA $TAG release already built"
+          }
+          else {
+            echo "REBUILD=true" >> "$env:GITHUB_ENV"
+            echo "TAG=$TAG" >> "$env:GITHUB_ENV"
+            echo "About to build a new release $TAG"
+          }
+      - name: Install Prerequisites
+        if: ${{ env.REBUILD }}
+        run: |
+          choco install upx
+      - name: Download LZMA-SDK
+        if: ${{ env.REBUILD }}
+        run: |
+          aria2c "$env:LZMA_URL"
+          7z x "$env:LZMA_7Z" | Out-Null
+          del "$env:LZMA_7Z"
+      - name: Download Repo
+        if: ${{ env.REBUILD }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: 'C\Util'
+        run: |
+          gh repo clone ${{ github.repository }} -- --depth=1
+          $REPO = "${{ github.repository }}"
+          $REPO_NAME = $REPO.split('/')[1]
+          $REPO_PATH = 'C\Util\' + $REPO_NAME
+          echo "REPO_PATH=$REPO_PATH" >> "$env:GITHUB_ENV"
+      - name: Build Repo
+        if: ${{ env.REBUILD }}
+        shell: cmd
+        working-directory: ${{ env.REPO_PATH }}
+        run: |
+          if defined REPO_VERFIX set MY_VER_FIX=%REPO_VERFIX%
+          build.bat
+      - name: Upload Release
+        if: ${{ env.REBUILD }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: ${{ format('{0}\build\release', env.REPO_PATH) }}
+        run: |
+          gh release create "$env:TAG" --title "$env:TAG" *.7z

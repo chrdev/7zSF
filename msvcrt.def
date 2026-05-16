@@ -1,0 +1,7 @@
+LIBRARY MSVCRT
+EXPORTS
+free
+malloc
+memcmp
+memset
+memcpy
