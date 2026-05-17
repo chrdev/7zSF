@@ -1,4 +1,4 @@
-name: Build New Release
+name: WinXP+ x64 x86
 on:
   workflow_dispatch:
     inputs:
@@ -23,18 +23,18 @@ jobs:
         run: |
           $LZMA_JSON = gh api -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2026-03-10' /repos/ip7z/7zip/releases/latest | Out-String
 
-          if ($LZMA_JSON -notmatch '"browser_download_url".+"(https://.+?/lzma.+?\.7z)"') {
+          if ($LZMA_JSON -notmatch '.*"browser_download_url".+?"(https://.+?/lzma.+?\.7z)"') {
             echo "Can't get LZMA-SDK URL"
             exit 1
           }
           $LZMA_URL = $matches[1]
 
-          if ($LZMA_JSON -notmatch '"tag_name".+?"(.+?)"') {
+          if ($LZMA_JSON -notmatch '.*"tag_name".+?"(.+?)"') {
             echo "Can't get LZMA-SDK Tag"
             exit 1
           }
           $LZMA_TAG = $matches[1]
-          $LZMA_URL -match '/(lzma.+\.7z)' | Out-Null
+          $LZMA_URL -match '.*/(lzma.+?\.7z)' | Out-Null
           $LZMA_7Z = $matches[1]
 
           echo "LZMA_URL=$LZMA_URL" >> "$env:GITHUB_ENV"
@@ -49,7 +49,7 @@ jobs:
           $REPO_JSON = ''
           $REPO_JSON = gh release view -R ${{ github.repository }} --json tagName 2>$null | Out-String
           $LASTEXITCODE = 0
-          if ($REPO_JSON -match '"tagName".+?"(.+?)"') {
+          if ($REPO_JSON -match '.*"tagName".+?"(.+?)"') {
             $REPO_TAG = $matches[1]
           }
           echo "REPO_TAG=$REPO_TAG" >> "$env:GITHUB_ENV"

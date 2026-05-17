@@ -1,23 +1,25 @@
 # 7zSF
 
-![autobuild](https://github.com/chrdev/7zSF/actions/workflows/build.yaml/badge.svg)
+![WinXP+ x64 x86 Releases](https://github.com/chrdev/7zSF/actions/workflows/build.yaml/badge.svg)
 
-A 7-Zip self extractor for special folders. For Windows XP and above, x86 and x64.  
+A 7-Zip self extractor for special folders. For Windows XP and above, x64 and x86.  
 Extract payload to special folders according to CSIDL, optionally run a command afterwards.  
 A lightweight installer.
 
 ## Useage
 
-Use CSIDL as payload folder names. CSIDL stands for "constant special item ID list". Each CSIDL represents a special folder.  
+Use CSIDL as payload folder names. CSIDL stands for "constant special item ID list". Each CSIDL represents a special system location.
 The CSIDL format is a 2-digits hex value. see [reference section](#reference).
 
-If there is a "y" file in the payload root, it must be a UTF-16 LE encoded text file. Its content will be showed with Yes/No options.  
-The user may choose "Yes" to extract, or "No" to cancel.
+If there is a "y" file in the payload root, it must be a UTF-16 LE text file. it will be showed before the extracting.
+The user may choose "Yes" to continue, or "No" to cancel.
 
-If there is a "z" file in the payload root, it must be a UTF-16 LE encoded text file. After the extraction, its content will be executed as a command.  
-z should contain only one line, but trailing blank lines and spaces are permitted.
+If there is a "z" file in the payload root, it must be a UTF-16 LE text file. After the extraction, it will be executed as a command.  
+z should contain exactly one line, but trailing spaces or blank lines are permitted.
 
-Below is a typical payload dir tree, aa, bb and cc stand for different CSIDL names:
+No other folders or files are allowed for in the payload root.
+
+Below is a typical payload tree, aa, bb and cc stand for different CSIDL names:
 
     7z payload root
     ├───aa
@@ -26,11 +28,12 @@ Below is a typical payload dir tree, aa, bb and cc stand for different CSIDL nam
     │   └───contents to be extracted to CSIDL bb special folder
 	├───cc
     │   └───contents to be extracted to CSIDL cc special folder
-    ├───y : (UTF-16 LE text, prompt before the extraction, optional)
-    └───z : (UTF-16 LE text, one-liner command, optional, runs after extraction)
+	├───[other CSIDL names]
+    ├───y : (UTF-16 LE text, shows before extraction, optional)
+    └───z : (UTF-16 LE text, one-liner command runs after extraction, optional)
 
 Like other 7z sfx modules, combine the sfx and payload via:
-```
+```cmd
 copy /b 7zSF.sfx + payload.7z my-installer.exe
 ```
 
@@ -40,7 +43,7 @@ copy /b 7zSF.sfx + payload.7z my-installer.exe
 
 CSIDL for desktop is "00".
 
-```
+```cmd
 mkdir 00
 echo hello 7zSF> 00\hello-7zSF.txt
 
@@ -54,13 +57,11 @@ Run hello.exe, now we have hello-7zSF.txt file on desktop.
 
 Following the above example, open notepad and paste:
 
-```
-notepad %USERPROFILE%\desktop\hello-7zSF.txt
-```
+    notepad %USERPROFILE%\desktop\hello-7zSF.txt
 
 Save as z, (NOT z.txt), the encoding must be UTF-16 LE.
 
-```
+```cmd
 7z a payload.7z 00 z
 copy /b 7zSF.sfx + payload.7z hello.exe
 ```
@@ -154,13 +155,13 @@ try{ fs.DeleteFile(sh.SpecialFolders("Desktop") + "\\RustDesk.lnk", true); } cat
 
 ```
 z : UTF-16 LE text
---------
+------------------
 wscript.exe //nologo %LOCALAPPDATA%\rustdesk\install.js
 ```
 
 Now we pack it.
 
-```
+```cmd
 7z a payload.7z 1a 1c z
 copy /b 7zSF64.sfx + payload.7z my-rustdesk.exe
 ```
@@ -171,7 +172,7 @@ These CSIDL names/values and their meanings are copied from ShlObj_core.h.
 They are listed here for reference purpose only. All of them may not work in practice.
 
     Name      Meaning or typical location
-    ------    ---------------------------
+    ----      ---------------------------
     00        <desktop>
     02        Start Menu\Programs
     04        My Computer\Printers
@@ -218,12 +219,12 @@ They are listed here for reference purpose only. All of them may not work in pra
 
 ## Development
 
-Prerequisite:
+Prerequisites:
 
-* Modern Visual Studio, eg. communiy 2026, with C (CPP), nmake, and Windows SDK
-* 7-Zip LZMA SDK
-* 7-Zip (for packing release)
-* upx (for packing release)
+* Modern [Visual Studio](https://visualstudio.microsoft.com/vs/community), eg. communiy 2026, with C (CPP), nmake, and Windows SDK
+* [7-Zip LZMA SDK](https://github.com/ip7z/7zip)
+* [7-Zip](https://github.com/ip7z/7zip) (for packing release)
+* [UPX](https://github.com/upx/upx) (for packing release)
 
 Steps:
 
@@ -231,12 +232,13 @@ Steps:
 2. Open a normal command prompt, NOT command prompt for VS.
 3. run build.bat within the project folder.
 
-build.bat will find the installed VS, bulid and pack the release.  
+build.bat will find the installed VS, run nmake to bulid, then run upx and 7z to pack the release.  
 Resultant files are in bulid\release.
 
-This project links to the good? old msvcrt.dll to reduce binary size and run on Windows XP.
+This project links to the good? old msvcrt.dll to reduce binary sizes and support Windows XP.
 
-A VS2026 solution is provided to make debugging easier, it's not equivalent to the makefile.
+A VS2026 solution is provided to make developing easier, it's not equivalent to the makefile.
 
 ## LICENSE
+
 Public Domain
