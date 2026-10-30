@@ -67,9 +67,9 @@ SFX_OBJS_CON = \
 # =============================================================================
 
 CFLAGS = $(CFLAGS) /nologo \
-	/c /Wall /WX /Gy /GF -GS- -Zc:wchar_t \
-	/O1 \
-	/DUNICODE /D_UNICODE \
+	/c /Wall /WX \
+	/GL /O1 /Oi /Gy /GF /GS- \
+	/DNDEBUG /DUNICODE /D_UNICODE \
 	/DZ7_EXTRACT_ONLY \
 
 AFLAGS = $(AFLAGS) /nologo /c /WX
@@ -84,8 +84,8 @@ LD = link
 LDLIBS = Kernel32.lib user32.lib shell32.lib
 
 LDFLAGS = $(LDFLAGS) /NOLOGO \
-	/FIXED \
 	/WX \
+	/LTCG /DYNAMICBASE:NO \
 	/NODEFAULTLIB \
 	/ENTRY:entry \
 	/MANIFEST:EMBED \
